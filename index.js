@@ -10,7 +10,7 @@ db.connect();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-let currentUserId = 1;
+let userId = 1;
 
 let users = [
   { id: 1, name: "Angela", color: "teal" },
@@ -27,9 +27,10 @@ async function checkVisisted(userId=1) {
 }
 
 async function userInfo() {
-  // Gets the id, name and colour code of users frm db
-  const result = await db.query("SELECT users.id,name,color FROM public.visited_countries JOIN users ON visited_countries.id=users.id")
-  let usersInfo = []
+  // Gets the id, name and colour code of users from db
+  // const result = await db.query("SELECT users.id,name,color FROM public.visited_countries JOIN users ON visited_countries.id=users.id")
+  const result = await db.query("SELECT * FROM users");
+  let usersInfo = [];
   result.rows.forEach((user) => {
     usersInfo.push(user);
   });
@@ -37,10 +38,13 @@ async function userInfo() {
 }
 app.get("/", async (req, res) => {
   const countries = await checkVisisted();
+  const userData = await userInfo();
+  console.log("This are the users available to backend: " + JSON.stringify(userData));
+
   res.render("index.ejs", {
     countries: countries,
     total: countries.length,
-    users: users,
+    users: userData,
     color: "teal",
   });
 });
@@ -69,31 +73,54 @@ app.post("/add", async (req, res) => {
   }
 });
 app.post("/user", async (req, res) => {
-  console.log("This is the body name: " + req.body["user"]);
+  // Handles the mult-user functionality
   if (req.body["user"]) {
-    const userId = parseInt(req.body["user"]);
-    const countries = await checkVisisted(userId);
-    const userData = await userInfo();
-    console.log("This are the users: " + JSON.stringify(userData));
-
-    const userColor = userData[userId - 1]["color"];
-    console.log("user color: " + userColor);
-
-    res.render("index.ejs", {
-      countries: countries,
-      total: countries.length,
-      users: userData,
-      color: userColor,
-    });
-  } else {
-    res.render("new.ejs");
+    userId = parseInt(req.body["user"]);
   }
+  
+  if (req.body["add"]) {
+    return res.render("new.ejs");
+  }
+
+  const countries = await checkVisisted(userId);
+  const userData = await userInfo();
+  console.log("This are the users: " + JSON.stringify(userData));
+
+  const userIndex = userData.findIndex((user) => user["id"] === userId);
+  const userColor = userData[userIndex]["color"];
+  console.log("user color: " + userColor);
+
+  res.render("index.ejs", {
+    countries: countries,
+    total: countries.length,
+    users: userData,
+    color: userColor,
+  });
 });
 
 app.post("/new", async (req, res) => {
   //Hint: The RETURNING keyword can return the data that was inserted.
   //https://www.postgresql.org/docs/current/dml-returning.html
-  
+  const result = await db.query(
+    "INSERT INTO users (name, color) VALUES ($1, $2) RETURNING id", 
+    [req.body["name"], req.body["color"]]
+  );
+  userId = result.rows[0]["id"];
+
+  const countries = await checkVisisted(userId);
+  const userData = await userInfo();
+  console.log("This are the users: " + JSON.stringify(userData));
+
+  const userIndex = userData.findIndex((user) => user["id"] === userId);
+  const userColor = userData[userIndex]["color"];
+  console.log("user color: " + userColor);
+
+  res.render("index.ejs", {
+    countries: countries,
+    total: countries.length,
+    users: userData,
+    color: userColor,
+  });
 });
 
 app.listen(port, () => {
