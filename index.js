@@ -36,10 +36,30 @@ async function userInfo() {
   });
   return usersInfo;
 }
+
+async function displayUserMap(req, res, next) {
+  // Displays the visited countries map of the selected user
+
+  const countries = await checkVisisted(userId);
+  const userData = await userInfo();
+  // console.log("This are the users: " + JSON.stringify(userData));
+
+  const userIndex = userData.findIndex((user) => user["id"] === userId);
+  const userColor = userData[userIndex]["color"];
+  // console.log("user color: " + userColor);
+
+  return res.render("index.ejs", {
+    countries: countries,
+    total: countries.length,
+    users: userData,
+    color: userColor,
+  });
+}
+
 app.get("/", async (req, res) => {
   const countries = await checkVisisted();
   const userData = await userInfo();
-  console.log("This are the users available to backend: " + JSON.stringify(userData));
+  // console.log("This are the users available to backend: " + JSON.stringify(userData));
 
   res.render("index.ejs", {
     countries: countries,
@@ -58,18 +78,23 @@ app.post("/add", async (req, res) => {
     );
 
     const data = result.rows[0];
+    console.log("This is data - " + data.country_code);
+    console.log("This is user id: " + userId);
     const countryCode = data.country_code;
     try {
       await db.query(
-        "INSERT INTO visited_countries (country_code) VALUES ($1)",
-        [countryCode]
+        "INSERT INTO visited_countries (country_code, user_id) VALUES ($1, $2)",
+        [countryCode, userId]
       );
-      res.redirect("/");
+      // res.redirect("/user");
+      await displayUserMap(req, res);
     } catch (err) {
       console.log(err);
+      res.status(500).send("Error inserting into the database");
     }
   } catch (err) {
     console.log(err);
+    res.status(500).send("Error querying database");
   }
 });
 app.post("/user", async (req, res) => {
@@ -82,20 +107,22 @@ app.post("/user", async (req, res) => {
     return res.render("new.ejs");
   }
 
-  const countries = await checkVisisted(userId);
-  const userData = await userInfo();
-  console.log("This are the users: " + JSON.stringify(userData));
+  await displayUserMap(req, res);
+  
+  // const countries = await checkVisisted(userId);
+  // const userData = await userInfo();
+  // // console.log("This are the users: " + JSON.stringify(userData));
 
-  const userIndex = userData.findIndex((user) => user["id"] === userId);
-  const userColor = userData[userIndex]["color"];
-  console.log("user color: " + userColor);
+  // const userIndex = userData.findIndex((user) => user["id"] === userId);
+  // const userColor = userData[userIndex]["color"];
+  // // console.log("user color: " + userColor);
 
-  res.render("index.ejs", {
-    countries: countries,
-    total: countries.length,
-    users: userData,
-    color: userColor,
-  });
+  // res.render("index.ejs", {
+  //   countries: countries,
+  //   total: countries.length,
+  //   users: userData,
+  //   color: userColor,
+  // });
 });
 
 app.post("/new", async (req, res) => {
@@ -109,11 +136,11 @@ app.post("/new", async (req, res) => {
 
   const countries = await checkVisisted(userId);
   const userData = await userInfo();
-  console.log("This are the users: " + JSON.stringify(userData));
+  // console.log("This are the users: " + JSON.stringify(userData));
 
   const userIndex = userData.findIndex((user) => user["id"] === userId);
   const userColor = userData[userIndex]["color"];
-  console.log("user color: " + userColor);
+  // console.log("user color: " + userColor);
 
   res.render("index.ejs", {
     countries: countries,
